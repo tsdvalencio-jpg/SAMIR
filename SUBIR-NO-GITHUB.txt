@@ -1,0 +1,44 @@
+CASA DO SAMIR — FÁBRICA DE APK
+
+1) CRIE UM REPOSITÓRIO NOVO NO GITHUB.
+
+2) EXTRAIA O ZIP.
+
+3) SUBA O CONTEÚDO PARA A RAIZ DO REPOSITÓRIO.
+NÃO crie uma pasta extra envolvendo o projeto.
+
+A raiz deve mostrar:
+.github/
+app/
+.gitignore
+build.gradle
+gradle.properties
+settings.gradle
+README.md
+SUBIR-NO-GITHUB.txt
+
+4) CONFIRME QUE A PASTA .github FOI ENVIADA.
+
+5) ABRA:
+GitHub > Actions > Gerar APK - Casa do Samir
+
+6) SE NÃO INICIAR AUTOMATICAMENTE:
+Run workflow > Run workflow
+
+7) QUANDO FICAR VERDE:
+Abra a execução > Artifacts > Casa-do-Samir-APK
+
+8) BAIXE O ARTIFACT.
+Dentro estará:
+Casa-do-Samir.apk
+Casa-do-Samir.sha256.txt
+
+O banco não usa Firebase.
+Os apartamentos ficam salvos no próprio celular.
+
+Em Android moderno:
+Downloads/Casa do Samir/dados-apartamentos.json
+Downloads/Casa do Samir/Relatorios/
+Downloads/Casa do Samir/Backups/
+
+Powered by thIAguinho Soluções

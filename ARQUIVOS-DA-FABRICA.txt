@@ -1,0 +1,31 @@
+CASA DO SAMIR — FÁBRICA APK FINAL
+
+Suba todo o conteúdo deste ZIP diretamente na raiz do repositório GitHub.
+
+Total de arquivos no projeto: 24
+
+ESTRUTURA:
+.github/workflows/build-apk.yml
+.gitignore
+README.md
+SUBIR-NO-GITHUB.txt
+VERSAO-E-CHECKLIST.txt
+app/build.gradle
+app/src/main/AndroidManifest.xml
+app/src/main/assets/app.js
+app/src/main/assets/index.html
+app/src/main/assets/style.css
+app/src/main/assets/vendor/.gitkeep
+app/src/main/java/br/com/thiaguinhosolucoes/casadosamir/MainActivity.java
+app/src/main/res/drawable/ic_launcher_foreground.xml
+app/src/main/res/mipmap-anydpi/ic_launcher.xml
+app/src/main/res/mipmap-anydpi/ic_launcher_round.xml
+app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+app/src/main/res/values/colors.xml
+app/src/main/res/values/strings.xml
+app/src/main/res/values/styles.xml
+app/src/main/res/xml/file_paths.xml
+build.gradle
+gradle.properties
+settings.gradle

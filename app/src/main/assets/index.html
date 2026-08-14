@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>Casa do Samir — Checklist de Apartamentos</title>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark brand-house" aria-hidden="true">⌂</div>
+        <div>
+          <strong>Casa do Samir</strong>
+          <span>Visitar • comparar • decidir</span>
+        </div>
+      </div>
+      <button class="icon-btn" id="btnTheme" type="button" aria-label="Alternar tema" title="Alternar tema">◐</button>
+    </header>
+
+    <nav class="tabs" aria-label="Navegação principal">
+      <button class="tab is-active" type="button" data-tab="visita">Visita</button>
+      <button class="tab" type="button" data-tab="salvos">Salvos <span id="savedCount" class="tab-count">0</span></button>
+      <button class="tab" type="button" data-tab="comparar">Comparar</button>
+    </nav>
+
+    <main>
+      <section class="page is-active" id="page-visita">
+        <section class="hero-card">
+          <div>
+            <span class="eyebrow">VISITA</span>
+            <h1 id="visitTitle">Novo apartamento</h1>
+            <p id="autoSaveStatus">Salvo automaticamente no celular.</p>
+          </div>
+          <div class="hero-score">
+            <span>Nota</span>
+            <strong id="heroScore">—</strong>
+            <small id="heroProgress">0% conferido</small>
+          </div>
+        </section>
+
+        <form id="propertyForm" novalidate>
+          <section class="panel">
+            <div class="section-heading">
+              <div>
+                <span class="step">01</span>
+                <h2>Imóvel</h2>
+              </div>
+              <button type="button" class="btn btn-light btn-small" id="btnNew">+ Nova visita</button>
+            </div>
+
+            <div class="field-grid">
+              <label class="field span-2">
+                <span>Nome do apartamento</span>
+                <input id="name" name="name" type="text" placeholder="Ex.: Vila Mariana 82 m²" autocomplete="off" />
+              </label>
+
+              <label class="field span-2">
+                <span>Endereço</span>
+                <input id="address" name="address" type="text" placeholder="Rua, número, bairro" autocomplete="street-address" />
+              </label>
+
+              <label class="field">
+                <span>Cidade</span>
+                <input id="city" name="city" type="text" value="São Paulo - SP" autocomplete="address-level2" />
+              </label>
+
+              <label class="field">
+                <span>Andar / apto.</span>
+                <input id="floor" name="floor" type="text" placeholder="Ex.: 8º andar • ap. 84" />
+              </label>
+
+            </div>
+
+            <details class="optional-details">
+              <summary>Mais detalhes</summary>
+              <div class="field-grid optional-grid">
+                <label class="field">
+                  <span>Corretor</span>
+                  <input id="realtor" name="realtor" type="text" placeholder="Nome ou telefone" />
+                </label>
+
+                <label class="field">
+                  <span>Link do anúncio</span>
+                  <input id="listingUrl" name="listingUrl" type="url" placeholder="https://..." inputmode="url" />
+                </label>
+              </div>
+            </details>
+          </section>
+
+          <section class="panel">
+            <div class="section-heading">
+              <div>
+                <span class="step">02</span>
+                <h2>Valores</h2>
+              </div>
+            </div>
+
+            <div class="field-grid metrics-grid">
+              <label class="field">
+                <span>Preço</span>
+                <div class="money-input"><b>R$</b><input id="price" name="price" inputmode="decimal" placeholder="0,00" /></div>
+              </label>
+              <label class="field">
+                <span>Condomínio</span>
+                <div class="money-input"><b>R$</b><input id="condo" name="condo" inputmode="decimal" placeholder="0,00" /></div>
+              </label>
+              <label class="field">
+                <span>IPTU</span>
+                <div class="money-input"><b>R$</b><input id="iptu" name="iptu" inputmode="decimal" placeholder="0,00" /></div>
+              </label>
+              <label class="field">
+                <span>Área</span>
+                <div class="suffix-input"><input id="area" name="area" inputmode="decimal" placeholder="0" /><b>m²</b></div>
+              </label>
+            </div>
+
+            <details class="optional-details">
+              <summary>Detalhes do imóvel</summary>
+              <div class="field-grid metrics-grid optional-grid">
+                <label class="field">
+                  <span>Reforma</span>
+                  <div class="money-input"><b>R$</b><input id="renovation" name="renovation" inputmode="decimal" placeholder="0,00" /></div>
+                </label>
+                <label class="field">
+                  <span>Quartos</span>
+                  <input id="bedrooms" name="bedrooms" type="number" min="0" step="1" placeholder="0" />
+                </label>
+                <label class="field">
+                  <span>Banheiros</span>
+                  <input id="bathrooms" name="bathrooms" type="number" min="0" step="1" placeholder="0" />
+                </label>
+                <label class="field">
+                  <span>Vagas</span>
+                  <input id="parking" name="parking" type="number" min="0" step="1" placeholder="0" />
+                </label>
+              </div>
+            </details>
+
+            <div class="financial-strip">
+              <div><span>Preço + reforma</span><strong id="effectiveCost">—</strong></div>
+              <div><span>Custo mensal fixo</span><strong id="monthlyCost">—</strong></div>
+              <div><span>Preço por m²</span><strong id="priceM2">—</strong></div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="section-heading">
+              <div>
+                <span class="step">03</span>
+                <h2>Localização</h2>
+              </div>
+            </div>
+
+            <div class="field-grid">
+              <label class="field span-2">
+                <span>Trabalho</span>
+                <input id="workAddress" name="workAddress" type="text" placeholder="Endereço do trabalho" />
+              </label>
+            </div>
+
+            <div class="location-actions">
+              <button class="btn btn-primary" type="button" id="btnLocation">Localizar</button>
+              <button class="btn btn-light" type="button" id="btnMapsProperty">Mapa</button>
+              <button class="btn btn-light" type="button" id="btnMapsRoute">Trabalho</button>
+            </div>
+
+            <div class="location-cards">
+              <article class="mini-card">
+                <span>Distância do trabalho</span>
+                <strong id="distanceWork">—</strong>
+                <small id="durationWork">Informe os endereços</small>
+              </article>
+              <article class="mini-card">
+                <span>Metrô mais próximo</span>
+                <strong id="nearestMetro">—</strong>
+                <small id="metroDistance">Busca automática</small>
+              </article>
+            </div>
+
+            <div class="field-grid">
+              <label class="field">
+                <span>Metrô</span>
+                <input id="metroManual" name="metroManual" type="text" placeholder="Ex.: Ana Rosa" />
+              </label>
+              <label class="field">
+                <span>Tempo até o trabalho</span>
+                <input id="manualCommute" name="manualCommute" type="text" placeholder="Ex.: 28 min de metrô" />
+              </label>
+            </div>
+
+          </section>
+
+          <section class="panel checklist-panel">
+            <div class="section-heading sticky-heading">
+              <div>
+                <span class="step">04</span>
+                <h2>Conferência</h2>
+              </div>
+              <div class="progress-pill"><span id="checkDone">0</span>/<span id="checkTotal">0</span></div>
+            </div>
+
+            <div id="checklistRoot"></div>
+          </section>
+
+          <section class="panel">
+            <div class="section-heading">
+              <div>
+                <span class="step">05</span>
+                <h2>Resumo</h2>
+              </div>
+            </div>
+
+            <label class="field">
+              <span>Pontos fortes</span>
+              <textarea id="pros" name="pros" rows="3" placeholder="O que mais gostou?"></textarea>
+            </label>
+            <label class="field">
+              <span>Pontos de atenção</span>
+              <textarea id="cons" name="cons" rows="3" placeholder="Problemas, custos ou negociação"></textarea>
+            </label>
+            <label class="field">
+              <span>Observações finais</span>
+              <textarea id="generalNotes" name="generalNotes" rows="4" placeholder="Outras anotações"></textarea>
+            </label>
+
+            <label class="favorite-toggle">
+              <input id="favorite" name="favorite" type="checkbox" />
+              <span>★ Marcar como favorito</span>
+            </label>
+          </section>
+
+          <section class="summary-panel">
+            <div class="score-ring" id="scoreRing">
+              <div>
+                <strong id="finalScore">—</strong>
+                <span>nota auxiliar</span>
+              </div>
+            </div>
+            <div class="summary-copy">
+              <span class="eyebrow">RESUMO DA VISITA</span>
+              <h2 id="summaryTitle">Preencha o checklist para formar a nota.</h2>
+              <div class="score-breakdown">
+                <div><span>Técnico</span><strong id="scoreTechnical">—</strong></div>
+                <div><span>Localização</span><strong id="scoreLocation">—</strong></div>
+                <div><span>Custo-benefício</span><strong id="scoreFinancial">—</strong></div>
+              </div>
+
+            </div>
+          </section>
+
+          <div class="action-bar">
+            <button class="btn btn-primary" id="btnSave" type="button">Salvar</button>
+            <button class="btn btn-dark" id="btnPdf" type="button">PDF</button>
+            <button class="btn btn-light" id="btnPrint" type="button">Imprimir</button>
+            <button class="btn btn-whatsapp" id="btnShare" type="button">Enviar</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="page" id="page-salvos">
+        <section class="page-title compact-page-title">
+          <div>
+            <span class="eyebrow">PAINEL</span>
+            <h1>Meus apartamentos</h1>
+          </div>
+          <div class="page-title-actions">
+            <button class="btn btn-light" id="btnExportJson" type="button">Backup</button>
+            <label class="btn btn-light file-btn">Restaurar<input id="importJson" type="file" accept="application/json" /></label>
+          </div>
+        </section>
+        <div id="savedDashboard" class="dashboard-strip"></div>
+        <div id="savedList" class="saved-list"></div>
+      </section>
+
+      <section class="page" id="page-comparar">
+        <section class="page-title compact-page-title">
+          <div>
+            <span class="eyebrow">DECISÃO</span>
+            <h1>Comparar</h1>
+          </div>
+          <button class="btn btn-dark" id="btnComparisonPdf" type="button">PDF</button>
+        </section>
+
+        <div id="compareDashboard" class="dashboard-strip"></div>
+        <div class="comparison-legend">
+          <span><b>45%</b> condição técnica</span>
+          <span><b>25%</b> localização</span>
+          <span><b>30%</b> custo-benefício</span>
+        </div>
+        <div id="comparisonList" class="comparison-list"></div>
+      </section>
+    </main>
+
+    <footer>
+      <span>Checklist de apoio à decisão de compra de imóvel usado.</span>
+      <strong>Powered by thIAguinho Soluções</strong>
+    </footer>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <div id="printArea" aria-hidden="true"></div>
+
+  <script src="vendor/jspdf.umd.min.js"></script>
+  <script src="vendor/jspdf.plugin.autotable.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

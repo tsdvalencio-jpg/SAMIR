@@ -1,0 +1,57 @@
+CASA DO SAMIR — V1.0.0 — PACOTE PARA NOVO REPOSITÓRIO
+
+Implantado nesta versão:
+- Quadro de luz
+- Piso geral
+- Taco / madeira
+- Cupim
+- Pintura / acabamento
+- Mofo / umidade
+- Azulejos ocos / soltos
+- IPTU
+- Condomínio
+- Barulho durante o dia
+- Barulho à noite
+- Bairro durante o dia
+- Bairro à noite
+- Iluminação da rua à noite
+- Movimento / comércio à noite
+- Segurança no entorno
+- Proximidade e caminho até o metrô
+- Portaria 24 horas
+- Câmeras / acesso / eclusa
+- Comparação de preço, custo mensal, R$/m², trabalho e metrô
+- PDF individual
+- PDF de comparação
+- Impressão
+- Compartilhamento
+- Banco local no aparelho
+- Espelho em Downloads/Casa do Samir
+- Backup e restauração
+- GitHub Actions para gerar APK
+
+Interface:
+- mobile-first
+- sem rolagem horizontal
+- campos secundários recolhidos
+- categorias progressivas
+- OK / Atenção / Ruim / N/A
+- avanço automático entre categorias
+
+Build:
+- AGP 9.3.1
+- Gradle 9.5.0
+- Java 17
+- compileSdk/targetSdk 37
+- AndroidX Core 1.19.0
+- AndroidX WebKit 1.16.0 estável
+
+Powered by thIAguinho Soluções
+
+
+DASHBOARD FINAL:
+- Cards por apartamento minimizáveis/expansíveis.
+- Nota, andamento e favoritos visíveis no cabeçalho.
+- Alertas de Atenção/Ruim destacados.
+- Painel-resumo com total, concluídos, favoritos e melhor nota.
+- Botão Voltar: telas secundárias retornam à Visita; na Visita exige dois toques para sair.

@@ -1,0 +1,42 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace = 'br.com.thiaguinhosolucoes.casadosamir'
+    compileSdk = 37
+
+    defaultConfig {
+        applicationId = "br.com.thiaguinhosolucoes.casadosamir"
+        minSdk = 24
+        targetSdk = 37
+        versionCode = 1
+        versionName = "1.0.0"
+    }
+
+    buildTypes {
+        debug {
+            applicationIdSuffix = ""
+            versionNameSuffix = ""
+        }
+        release {
+            minifyEnabled = false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    packaging {
+        resources {
+            excludes += ["/META-INF/{AL2.0,LGPL2.1}"]
+        }
+    }
+}
+
+dependencies {
+    implementation "androidx.webkit:webkit:1.16.0"
+    implementation "androidx.core:core:1.19.0"
+}
