@@ -59,6 +59,16 @@ public class MainActivity extends Activity {
         window.setNavigationBarColor(Color.rgb(15, 23, 42));
 
         webView = new WebView(this);
+
+        // Rolagem vertical explícita para uso por toque no celular.
+        webView.setVerticalScrollBarEnabled(true);
+        webView.setHorizontalScrollBarEnabled(false);
+        webView.setScrollBarStyle(WebView.SCROLLBARS_INSIDE_OVERLAY);
+        webView.setOverScrollMode(WebView.OVER_SCROLL_IF_CONTENT_SCROLLS);
+        webView.setNestedScrollingEnabled(true);
+        webView.setFocusable(true);
+        webView.setFocusableInTouchMode(true);
+
         setContentView(webView);
 
         configureWebView();
