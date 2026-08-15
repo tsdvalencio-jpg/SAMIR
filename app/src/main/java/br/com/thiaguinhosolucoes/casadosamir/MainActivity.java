@@ -7,6 +7,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
+import android.location.Address;
+import android.location.Geocoder;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -34,6 +36,9 @@ import androidx.core.content.FileProvider;
 import androidx.webkit.WebViewAssetLoader;
 import androidx.webkit.WebViewClientCompat;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -41,6 +46,8 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Locale;
 
 public class MainActivity extends Activity {
 
@@ -308,6 +315,36 @@ public class MainActivity extends Activity {
         public void saveSettings(String json) {
             if (json == null) return;
             writePrivateFile(SETTINGS_FILE, json);
+        }
+
+        @JavascriptInterface
+        public String geocodeAddress(String query) {
+            JSONArray output = new JSONArray();
+            try {
+                if (query == null || query.trim().isEmpty() || !Geocoder.isPresent()) {
+                    return output.toString();
+                }
+
+                Geocoder geocoder = new Geocoder(context, new Locale("pt", "BR"));
+                @SuppressWarnings("deprecation")
+                List<Address> results = geocoder.getFromLocationName(query.trim(), 5);
+                if (results == null) return output.toString();
+
+                for (Address address : results) {
+                    if (address == null || !address.hasLatitude() || !address.hasLongitude()) continue;
+                    JSONObject item = new JSONObject();
+                    item.put("lat", address.getLatitude());
+                    item.put("lon", address.getLongitude());
+                    item.put("label", address.getMaxAddressLineIndex() >= 0 ? address.getAddressLine(0) : "");
+                    item.put("city", address.getLocality() == null ? "" : address.getLocality());
+                    item.put("subLocality", address.getSubLocality() == null ? "" : address.getSubLocality());
+                    item.put("state", address.getAdminArea() == null ? "" : address.getAdminArea());
+                    item.put("postalCode", address.getPostalCode() == null ? "" : address.getPostalCode());
+                    output.put(item);
+                }
+            } catch (Exception ignored) {
+            }
+            return output.toString();
         }
 
         @JavascriptInterface
