@@ -149,6 +149,7 @@
     durationWork: $("#durationWork"),
     nearestMetro: $("#nearestMetro"),
     metroDistance: $("#metroDistance"),
+    workAddressLabel: $("#workAddressLabel"),
     finalScore: $("#finalScore"),
     scoreTechnical: $("#scoreTechnical"),
     scoreLocation: $("#scoreLocation"),
@@ -200,6 +201,7 @@
       workAddress: settings.workAddress || "",
       distanceKm: null,
       durationMin: null,
+      distanceApprox: false,
       propertyCoord: null,
       workCoord: null,
       nearestMetro: "",
@@ -226,8 +228,27 @@
       }
       if (!raw) raw = localStorage.getItem(STORAGE_KEY) || "[]";
       const arr = JSON.parse(raw);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.isArray(arr) ? arr : []));
-      return Array.isArray(arr) ? arr : [];
+      const list = Array.isArray(arr) ? arr : [];
+      let cleaned = false;
+      list.forEach(item => {
+        const km = Number(item?.distanceKm);
+        if (Number.isFinite(km) && km > 300) {
+          item.distanceKm = null;
+          item.durationMin = null;
+          item.distanceApprox = false;
+          item.propertyCoord = null;
+          item.workCoord = null;
+          item.nearestMetro = "";
+          item.metroKm = null;
+          cleaned = true;
+        }
+      });
+      const normalized = JSON.stringify(list);
+      localStorage.setItem(STORAGE_KEY, normalized);
+      if (cleaned && isAndroidApp() && typeof AndroidApp.saveState === "function") {
+        try { AndroidApp.saveState(normalized); } catch {}
+      }
+      return list;
     } catch (err) {
       console.error("Falha ao carregar dados locais", err);
       return [];
@@ -296,6 +317,171 @@
       .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
   }
 
+  function normalizeText(value) {
+    return String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+  }
+
+  function syncNoteVisibility(item) {
+    if (!item || !state.draft) return;
+    const id = item.dataset.item;
+    const data = state.draft.checklist?.[id] || { status: "unseen", note: "" };
+    const forced = item.dataset.noteOpen === "1";
+    const show = forced || !!String(data.note || "").trim() || data.status === "attention" || data.status === "bad";
+    item.classList.toggle("show-note", show);
+    const toggle = $(".note-toggle", item);
+    if (toggle) toggle.textContent = show ? "− obs" : "+ obs";
+  }
+
+  function profilePreferences() {
+    const settings = loadSettings();
+    return settings.preferences && typeof settings.preferences === "object" ? settings.preferences : {};
+  }
+
+  function openProfile() {
+    const settings = loadSettings();
+    $("#profileWorkAddress").value = settings.workAddress || "";
+    $("#profileWorkCity").value = settings.workCity || "São Paulo - SP";
+    const pref = profilePreferences();
+    $("#prefMaxPrice").value = pref.maxPrice || "";
+    $("#prefMaxCondo").value = pref.maxCondo || "";
+    $("#prefMaxIptu").value = pref.maxIptu || "";
+    $("#prefMinArea").value = pref.minArea || "";
+    $("#prefMinBedrooms").value = pref.minBedrooms || "";
+    $("#prefMaxWorkKm").value = pref.maxWorkKm || "";
+    $("#prefMaxMetroKm").value = pref.maxMetroKm || "";
+    $("#prefNeighborhoods").value = pref.neighborhoods || "";
+    $("#prefParking").checked = !!pref.requireParking;
+    $("#prefPortaria").checked = !!pref.requirePortaria;
+    $("#prefElevator").checked = !!pref.requireElevator;
+    $("#prefQuiet").checked = !!pref.preferQuiet;
+    $("#prefSafe").checked = !!pref.preferSafe;
+    const sheet = $("#profileSheet");
+    sheet.hidden = false;
+    document.body.classList.add("profile-open");
+    requestAnimationFrame(() => sheet.classList.add("is-open"));
+    setTimeout(() => $("#profileWorkAddress")?.focus(), 120);
+  }
+
+  function closeProfile() {
+    const sheet = $("#profileSheet");
+    if (!sheet) return;
+    sheet.classList.remove("is-open");
+    document.body.classList.remove("profile-open");
+    setTimeout(() => { sheet.hidden = true; }, 160);
+  }
+
+  function saveProfile() {
+    const previous = loadSettings();
+    const workAddress = $("#profileWorkAddress").value.trim();
+    const workCity = $("#profileWorkCity").value.trim() || "São Paulo - SP";
+    const preferences = {
+      maxPrice: $("#prefMaxPrice").value.trim(),
+      maxCondo: $("#prefMaxCondo").value.trim(),
+      maxIptu: $("#prefMaxIptu").value.trim(),
+      minArea: $("#prefMinArea").value.trim(),
+      minBedrooms: $("#prefMinBedrooms").value.trim(),
+      maxWorkKm: $("#prefMaxWorkKm").value.trim(),
+      maxMetroKm: $("#prefMaxMetroKm").value.trim(),
+      neighborhoods: $("#prefNeighborhoods").value.trim(),
+      requireParking: $("#prefParking").checked,
+      requirePortaria: $("#prefPortaria").checked,
+      requireElevator: $("#prefElevator").checked,
+      preferQuiet: $("#prefQuiet").checked,
+      preferSafe: $("#prefSafe").checked
+    };
+
+    const workChanged = normalizeText(previous.workAddress) !== normalizeText(workAddress) || normalizeText(previous.workCity) !== normalizeText(workCity);
+    saveSettings({ ...previous, workAddress, workCity, preferences, profileConfigured: true });
+
+    if (workChanged) {
+      state.properties = state.properties.map(p => ({
+        ...p,
+        workAddress,
+        distanceKm: null,
+        durationMin: null,
+        distanceApprox: false,
+        workCoord: null
+      }));
+      if (state.draft) {
+        state.draft.workAddress = workAddress;
+        state.draft.distanceKm = null;
+        state.draft.durationMin = null;
+        state.draft.distanceApprox = false;
+        state.draft.workCoord = null;
+        const workInput = $("#workAddress");
+        if (workInput) workInput.value = workAddress;
+      }
+      persistAll();
+    }
+
+    closeProfile();
+    renderSaved();
+    renderComparison();
+    updateAllUI();
+    toast("Perfil salvo.");
+  }
+
+  function preferenceMatch(p) {
+    const pref = profilePreferences();
+    const checks = [];
+    const add = (known, pass) => { if (known) checks.push(!!pass); };
+
+    const price = parseNum(p.price);
+    const condo = parseNum(p.condo);
+    const iptu = parseNum(p.iptu);
+    const area = parseNum(p.area);
+    const bedrooms = parseNum(p.bedrooms);
+    const parking = parseNum(p.parking);
+    const maxPrice = parseNum(pref.maxPrice);
+    const maxCondo = parseNum(pref.maxCondo);
+    const maxIptu = parseNum(pref.maxIptu);
+    const minArea = parseNum(pref.minArea);
+    const minBedrooms = parseNum(pref.minBedrooms);
+    const maxWorkKm = parseNum(pref.maxWorkKm);
+    const maxMetroKm = parseNum(pref.maxMetroKm);
+
+    if (maxPrice > 0) add(price > 0, price <= maxPrice);
+    if (maxCondo > 0) add(condo > 0, condo <= maxCondo);
+    if (maxIptu > 0) add(iptu > 0, iptu <= maxIptu);
+    if (minArea > 0) add(area > 0, area >= minArea);
+    if (minBedrooms > 0) add(bedrooms > 0, bedrooms >= minBedrooms);
+    if (maxWorkKm > 0) add(p.distanceKm != null, Number(p.distanceKm) <= maxWorkKm);
+    if (maxMetroKm > 0) add(p.metroKm != null, Number(p.metroKm) <= maxMetroKm);
+    if (pref.requireParking) add(String(p.parking || "").trim() !== "", parking > 0);
+
+    const portaria = p.checklist?.portaria_24h?.status;
+    if (pref.requirePortaria) add(portaria && portaria !== "unseen" && portaria !== "na", portaria === "good");
+    const elevador = p.checklist?.elevadores?.status;
+    if (pref.requireElevator) add(elevador && elevador !== "unseen" && elevador !== "na", elevador === "good");
+
+    if (pref.preferQuiet) {
+      ["ruido_dia", "ruido_noite", "ruido_predio"].forEach(id => {
+        const st = p.checklist?.[id]?.status;
+        add(st && st !== "unseen" && st !== "na", st === "good");
+      });
+    }
+    if (pref.preferSafe) {
+      ["seguranca_entorno", "bairro_noite", "iluminacao_rua"].forEach(id => {
+        const st = p.checklist?.[id]?.status;
+        add(st && st !== "unseen" && st !== "na", st === "good");
+      });
+    }
+
+    const neighborhoods = String(pref.neighborhoods || "").split(",").map(normalizeText).filter(Boolean);
+    if (neighborhoods.length) {
+      const address = normalizeText(`${p.address || ""} ${p.name || ""}`);
+      add(!!address, neighborhoods.some(n => address.includes(n)));
+    }
+
+    if (!checks.length) return null;
+    return Math.round((checks.filter(Boolean).length / checks.length) * 100);
+  }
+
   function renderChecklist() {
     els.checklistRoot.innerHTML = CHECKLIST.map((group, idx) => `
       <details class="check-group" data-group="${group.id}" ${idx === 0 ? "open" : ""}>
@@ -316,7 +502,10 @@
                 <button type="button" class="status-btn" data-status="bad">× Ruim</button>
                 <button type="button" class="status-btn" data-status="na">N/A</button>
               </div>
-              <input class="item-note" data-note="${id}" type="text" placeholder="Observação" />
+              <div class="item-note-area">
+                <button class="note-toggle" data-note-toggle="${id}" type="button">+ obs</button>
+                <input class="item-note" data-note="${id}" type="text" placeholder="Observação" />
+              </div>
             </div>
           `).join("")}
         </div>
@@ -336,18 +525,20 @@
   function readFormIntoDraft() {
     if (!state.draft) return;
     formFields().forEach(id => state.draft[id] = $("#" + id)?.value ?? "");
+    const profile = loadSettings();
+    if (profile.workAddress) state.draft.workAddress = profile.workAddress;
     state.draft.favorite = $("#favorite").checked;
     state.draft.updatedAt = new Date().toISOString();
-    const workAddress = state.draft.workAddress.trim();
-    if (workAddress) saveSettings({ ...loadSettings(), workAddress });
   }
 
   function fillForm(property) {
     state.draft = structuredCloneSafe(property);
+    const profile = loadSettings();
+    if (profile.workAddress) state.draft.workAddress = profile.workAddress;
     state.currentId = property.id;
     formFields().forEach(id => {
       const el = $("#" + id);
-      if (el) el.value = property[id] ?? "";
+      if (el) el.value = state.draft[id] ?? "";
     });
     $("#favorite").checked = !!property.favorite;
 
@@ -357,6 +548,7 @@
       $$(".status-btn", item).forEach(btn => btn.classList.toggle("is-selected", btn.dataset.status === value.status));
       const note = $(`[data-note="${id}"]`, item);
       if (note) note.value = value.note || "";
+      syncNoteVisibility(item);
     }));
     updateAllUI();
   }
@@ -514,10 +706,16 @@
     els.monthlyCost.textContent = (parseNum(p.condo)+parseNum(p.iptu)) ? brl(parseNum(p.condo)+parseNum(p.iptu)) : "—";
     els.priceM2.textContent = parseNum(p.area) && parseNum(p.price) ? `${brl(parseNum(p.price)/parseNum(p.area))}/m²` : "—";
 
+    const settings = loadSettings();
+    const savedWork = settings.workAddress || p.workAddress || "";
+    if (els.workAddressLabel) els.workAddressLabel.textContent = savedWork || "Não cadastrado";
+    const hiddenWork = $("#workAddress");
+    if (hiddenWork) hiddenWork.value = savedWork;
+
     els.distanceWork.textContent = p.distanceKm != null ? `${num(p.distanceKm,1)} km` : "—";
-    els.durationWork.textContent = p.durationMin != null ? `Estimativa viária: ${Math.round(p.durationMin)} min` : "Calcule após informar os dois endereços";
-    els.nearestMetro.textContent = p.nearestMetro || "—";
-    els.metroDistance.textContent = p.metroKm != null ? `aprox. ${num(p.metroKm,1)} km em linha reta` : "Busca automática em dados cartográficos";
+    els.durationWork.textContent = p.manualCommute?.trim() || (savedWork ? (p.distanceKm != null ? (p.distanceApprox ? "Distância aproximada" : "Rota calculada") : "Toque em Localizar") : "Cadastre seu trabalho");
+    els.nearestMetro.textContent = p.metroManual?.trim() || p.nearestMetro || "—";
+    els.metroDistance.textContent = p.metroKm != null ? `${num(p.metroKm,1)} km` : "Toque em Localizar";
 
     els.scoreTechnical.textContent = tech.score === null ? "—" : num(tech.score,1);
     els.scoreLocation.textContent = loc === null ? "—" : num(loc,1);
@@ -533,6 +731,8 @@
       if (gp) gp.textContent = `${checked}/${group.items.length}`;
     });
     els.savedCount.textContent = state.properties.length;
+    const saveButton = $("#btnSave");
+    if (saveButton) saveButton.textContent = state.properties.some(x => x.id === p.id) ? "Salvar alterações" : "Salvar visita";
   }
 
   function summaryLabel(score, progress) {
@@ -570,6 +770,14 @@
   function bindEvents() {
     els.form.addEventListener("input", e => {
       if (e.target.matches("input,textarea")) {
+        if (state.draft && (e.target.id === "address" || e.target.id === "city")) {
+          state.draft.propertyCoord = null;
+          state.draft.distanceKm = null;
+          state.draft.durationMin = null;
+          state.draft.distanceApprox = false;
+          state.draft.nearestMetro = "";
+          state.draft.metroKm = null;
+        }
         readFormIntoDraft();
         updateAllUI();
         scheduleSave();
@@ -582,6 +790,16 @@
     });
 
     els.checklistRoot.addEventListener("click", e => {
+      const noteToggle = e.target.closest(".note-toggle");
+      if (noteToggle) {
+        const item = noteToggle.closest(".check-item");
+        const open = item.dataset.noteOpen !== "1";
+        item.dataset.noteOpen = open ? "1" : "0";
+        syncNoteVisibility(item);
+        if (open) setTimeout(() => $(".item-note", item)?.focus(), 60);
+        return;
+      }
+
       const btn = e.target.closest(".status-btn");
       if (!btn) return;
       const item = btn.closest(".check-item");
@@ -591,6 +809,7 @@
       state.draft.checklist[id] = state.draft.checklist[id] || {note:""};
       state.draft.checklist[id].status = next;
       $$(".status-btn", item).forEach(b => b.classList.toggle("is-selected", b.dataset.status === next));
+      syncNoteVisibility(item);
       updateAllUI();
       scheduleSave();
       advanceChecklist(item);
@@ -615,6 +834,11 @@
     $("#btnLocation").addEventListener("click", calculateLocation);
     $("#btnMapsProperty").addEventListener("click", () => openMapsProperty(state.draft));
     $("#btnMapsRoute").addEventListener("click", () => openMapsRoute(state.draft));
+    $("#btnProfile").addEventListener("click", openProfile);
+    $("#btnProfileWork").addEventListener("click", openProfile);
+    $("#btnCloseProfile").addEventListener("click", closeProfile);
+    $("#btnSaveProfile").addEventListener("click", saveProfile);
+    $("#profileSheet").addEventListener("click", e => { if (e.target.id === "profileSheet") closeProfile(); });
 
     $("#btnExportJson").addEventListener("click", exportBackup);
     $("#importJson").addEventListener("change", importBackup);
@@ -731,6 +955,7 @@
       const tech = technicalScore(p);
       const status = propertyStatus(p);
       const issues = issueSummary(p);
+      const prefMatch = preferenceMatch(p);
       const collapsed = isCardCollapsed("saved", p.id);
       return `
         <article class="saved-card dashboard-card ${collapsed ? "is-collapsed" : ""}" data-id="${p.id}">
@@ -742,6 +967,7 @@
               <div class="card-kickers">
                 ${p.favorite ? '<span class="favorite-badge">★ Favorito</span>' : ""}
                 <span class="status-badge ${status.cls}">${status.label}</span>
+                ${prefMatch != null ? `<span class="preference-badge">Perfil ${prefMatch}%</span>` : ""}
               </div>
               <h3>${esc(p.name || p.address || "Apartamento sem nome")}</h3>
               <p>${esc(p.address || "Endereço não informado")} ${p.floor ? "• "+esc(p.floor) : ""}</p>
@@ -757,7 +983,7 @@
             </div>
             ${issues.length ? `<div class="issue-strip">${issues.map(x=>`<span class="issue-chip ${x.st}">${esc(x.title)}</span>`).join("")}</div>` : `<div class="issue-strip clean"><span>Sem alertas marcados</span></div>`}
             <div class="card-actions">
-              <button class="btn btn-primary btn-small" data-action="open">Abrir</button>
+              <button class="btn btn-primary btn-small" data-action="edit">Editar</button>
               <button class="btn btn-light btn-small" data-action="pdf">PDF</button>
               <button class="btn btn-light btn-small" data-action="maps">Mapa</button>
               <button class="btn btn-danger btn-small" data-action="delete">Excluir</button>
@@ -766,6 +992,20 @@
         </article>
       `;
     }).join("");
+  }
+
+  function deleteVisit(p) {
+    if (!p) return false;
+    const label = p.name || p.address || "esta visita";
+    if (!confirm(`Excluir a visita "${label}"?\n\nEssa ação remove o registro deste aparelho.`)) return false;
+    state.properties = state.properties.filter(x => x.id !== p.id);
+    persistAll();
+    if (state.currentId === p.id) newVisit(true);
+    renderSaved();
+    renderComparison();
+    updateAllUI();
+    toast("Visita excluída.");
+    return true;
   }
 
   async function savedActions(e) {
@@ -779,19 +1019,14 @@
       toggleDashboardCard("saved", card);
       return;
     }
-    if (action === "open") {
-      fillForm(p); switchTab("visita"); toast("Visita carregada.");
+    if (action === "edit") {
+      fillForm(p); switchTab("visita"); toast("Editando visita.");
     } else if (action === "pdf") {
       await generatePropertyPdf(p,{save:true});
     } else if (action === "maps") {
       openMapsProperty(p);
     } else if (action === "delete") {
-      if (!confirm(`Excluir "${p.name || p.address || "este apartamento"}"?`)) return;
-      state.properties = state.properties.filter(x=>x.id!==p.id);
-      persistAll();
-      if (state.currentId === p.id) newVisit(true);
-      renderSaved(); renderComparison(); updateAllUI();
-      toast("Apartamento excluído.");
+      deleteVisit(p);
     }
   }
 
@@ -814,6 +1049,7 @@
       const p = r.p;
       const issues = issueSummary(p);
       const status = propertyStatus(p);
+      const prefMatch = preferenceMatch(p);
       const collapsed = isCardCollapsed("compare", p.id);
       const metric = (label,val) => `
         <div class="bar-row">
@@ -833,6 +1069,7 @@
                 <div class="card-kickers">
                   ${p.favorite?'<span class="favorite-badge">★ Favorito</span>':""}
                   <span class="status-badge ${status.cls}">${status.label}</span>
+                  ${prefMatch != null ? `<span class="preference-badge">Perfil ${prefMatch}%</span>` : ""}
                 </div>
                 <h3>${esc(p.name || p.address || "Apartamento sem nome")}</h3>
                 <p>${esc(p.address || "Endereço não informado")}</p>
@@ -858,9 +1095,10 @@
             </div>
             ${issues.length ? `<div class="issue-strip">${issues.map(x=>`<span class="issue-chip ${x.st}">${esc(x.title)}</span>`).join("")}</div>` : `<div class="issue-strip clean"><span>Sem alertas marcados</span></div>`}
             <div class="card-actions dashboard-compare-actions">
-              <button class="btn btn-primary btn-small" data-action="open">Abrir</button>
+              <button class="btn btn-primary btn-small" data-action="edit">Editar</button>
               <button class="btn btn-light btn-small" data-action="route">Rota</button>
               <button class="btn btn-light btn-small" data-action="pdf">PDF</button>
+              <button class="btn btn-danger btn-small" data-action="delete">Excluir</button>
             </div>
           </div>
         </article>
@@ -875,9 +1113,10 @@
     const p = state.properties.find(x=>x.id===card?.dataset.id);
     if (!p) return;
     if (btn.dataset.action === "toggle") { toggleDashboardCard("compare", card); return; }
-    if (btn.dataset.action === "open") { fillForm(p); switchTab("visita"); }
+    if (btn.dataset.action === "edit") { fillForm(p); switchTab("visita"); toast("Editando visita."); }
     if (btn.dataset.action === "route") openMapsRoute(p);
     if (btn.dataset.action === "pdf") await generatePropertyPdf(p,{save:true});
+    if (btn.dataset.action === "delete") deleteVisit(p);
   }
 
   function mapsQuery(p) {
@@ -901,25 +1140,137 @@
 
   function openMapsRoute(p) {
     const origin = mapsQuery(p);
-    const dest = p.workAddress?.trim();
-    if (!origin || !dest) return toast("Informe o endereço do apartamento e do trabalho.");
+    const settings = loadSettings();
+    const workAddress = String(settings.workAddress || p.workAddress || "").trim();
+    const workCity = String(settings.workCity || "").trim();
+    const dest = [workAddress, workCity].filter(Boolean).join(", ");
+    if (!origin || !workAddress) return toast("Cadastre o endereço do trabalho no perfil.");
     openExternalUrl(`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(dest)}&travelmode=transit`);
   }
 
-  async function geocode(query) {
-    const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=br&q=${encodeURIComponent(query)}`;
-    const res = await fetch(url, {headers:{"Accept":"application/json"}});
-    if (!res.ok) throw new Error("Falha ao localizar endereço");
-    const data = await res.json();
-    if (!data?.length) throw new Error(`Endereço não encontrado: ${query}`);
-    return {lat:Number(data[0].lat),lon:Number(data[0].lon),label:data[0].display_name};
+  async function fetchJson(url, timeoutMs = 14000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, {
+        signal: controller.signal,
+        headers: { "Accept": "application/json", "Accept-Language": "pt-BR,pt;q=0.9" }
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  function isSaoPauloCity(value) {
+    const v = normalizeText(value);
+    return v.includes("sao paulo");
+  }
+
+  async function geocodeAddress(address, cityHint = "São Paulo - SP") {
+    const cleanAddress = String(address || "").trim();
+    const cleanCity = String(cityHint || "").trim();
+    if (!cleanAddress) throw new Error("Endereço não informado");
+
+    const expectedCity = normalizeText(cleanCity);
+    const scoreCandidate = (candidate) => {
+      const city = normalizeText(candidate.city || "");
+      const label = normalizeText(candidate.label || "");
+      let score = Number(candidate.score || 0);
+      if (expectedCity && city && (city.includes(expectedCity) || expectedCity.includes(city))) score += 5;
+      if (isSaoPauloCity(cleanCity) && city === "sao paulo") score += 10;
+      if (isSaoPauloCity(cleanCity) && label.includes("sao paulo")) score += 2;
+      return { ...candidate, city, score };
+    };
+
+    const nativeCandidates = () => {
+      if (!isAndroidApp() || typeof AndroidApp.geocodeAddress !== "function") return [];
+      try {
+        const raw = AndroidApp.geocodeAddress([cleanAddress, cleanCity, "Brasil"].filter(Boolean).join(", "));
+        const data = JSON.parse(raw || "[]");
+        return (Array.isArray(data) ? data : []).map(item => scoreCandidate({
+          lat: Number(item.lat),
+          lon: Number(item.lon),
+          label: item.label || "",
+          city: item.city || "",
+          score: 4
+        })).filter(x => Number.isFinite(x.lat) && Number.isFinite(x.lon));
+      } catch (err) {
+        console.warn("Geocoder Android indisponível", err);
+        return [];
+      }
+    };
+
+    const photonFallback = async () => {
+      const params = new URLSearchParams({
+        q: [cleanAddress, cleanCity, "Brasil"].filter(Boolean).join(", "),
+        limit: "5",
+        lang: "pt"
+      });
+      const data = await fetchJson(`https://photon.komoot.io/api/?${params.toString()}`, 14000).catch(() => null);
+      return (data?.features || []).map(feature => {
+        const coords = feature.geometry?.coordinates || [];
+        const props = feature.properties || {};
+        return scoreCandidate({
+          lat: Number(coords[1]),
+          lon: Number(coords[0]),
+          label: [props.name, props.street, props.city, props.state, props.country].filter(Boolean).join(", "),
+          city: props.city || props.locality || "",
+          score: 1
+        });
+      }).filter(x => Number.isFinite(x.lat) && Number.isFinite(x.lon));
+    };
+
+    const nominatimRequest = async (bounded) => {
+      const params = new URLSearchParams({
+        format: "jsonv2",
+        limit: "5",
+        countrycodes: "br",
+        addressdetails: "1",
+        "accept-language": "pt-BR",
+        q: [cleanAddress, cleanCity, "Brasil"].filter(Boolean).join(", ")
+      });
+      if (bounded && isSaoPauloCity(cleanCity)) {
+        params.set("viewbox", "-46.95,-23.32,-46.20,-24.08");
+        params.set("bounded", "1");
+      }
+      const data = await fetchJson(`https://nominatim.openstreetmap.org/search?${params.toString()}`);
+      return (data || []).map(item => {
+        const a = item.address || {};
+        const type = String(item.type || "");
+        return scoreCandidate({
+          lat: Number(item.lat),
+          lon: Number(item.lon),
+          label: item.display_name || "",
+          city: a.city || a.town || a.municipality || a.village || "",
+          score: ["house","building","residential","apartments"].includes(type) ? 2 : 0
+        });
+      }).filter(x => Number.isFinite(x.lat) && Number.isFinite(x.lon));
+    };
+
+    let candidates = nativeCandidates();
+    if (!candidates.length) candidates = await nominatimRequest(true).catch(() => []);
+    if (!candidates.length) candidates = await nominatimRequest(false).catch(() => []);
+    if (!candidates.length) candidates = await photonFallback();
+    if (!candidates.length) throw new Error("Endereço não encontrado. Confira rua e número.");
+
+    candidates.sort((a,b) => b.score - a.score);
+    const best = candidates[0];
+    if (!best) throw new Error("Não foi possível confirmar o endereço.");
+
+    if (isSaoPauloCity(cleanCity)) {
+      const center = { lat: -23.55052, lon: -46.633308 };
+      if (haversine(center, best) > 85) {
+        throw new Error("Endereço localizado fora de São Paulo. Confira rua, número e bairro.");
+      }
+    }
+    return best;
   }
 
   async function routeEstimate(a,b) {
     const url = `https://router.project-osrm.org/route/v1/driving/${a.lon},${a.lat};${b.lon},${b.lat}?overview=false`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error("Falha ao calcular rota");
-    const data = await res.json();
+    const data = await fetchJson(url, 14000);
     const route = data.routes?.[0];
     if (!route) throw new Error("Rota não encontrada");
     return {km:route.distance/1000,min:route.duration/60};
@@ -933,64 +1284,107 @@
   }
 
   async function nearestSubway(coord) {
-    const q = `[out:json][timeout:18];
+    const q = `[out:json][timeout:15];
       (
-        nwr(around:6000,${coord.lat},${coord.lon})["railway"="station"]["station"="subway"];
-        nwr(around:6000,${coord.lat},${coord.lon})["railway"="station"]["subway"="yes"];
-        nwr(around:6000,${coord.lat},${coord.lon})["public_transport"="station"]["subway"="yes"];
+        nwr(around:6500,${coord.lat},${coord.lon})["railway"="station"]["station"="subway"];
+        nwr(around:6500,${coord.lat},${coord.lon})["railway"="station"]["subway"="yes"];
+        nwr(around:6500,${coord.lat},${coord.lon})["public_transport"="station"]["subway"="yes"];
       );
       out center tags;`;
-    const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(q)}`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error("Busca de metrô indisponível");
-    const data = await res.json();
-    const stations = (data.elements||[]).map(el => {
-      const lat = el.lat ?? el.center?.lat;
-      const lon = el.lon ?? el.center?.lon;
-      return {name:el.tags?.name || el.tags?.["name:pt"] || "Estação de metrô",lat,lon};
-    }).filter(x=>Number.isFinite(x.lat)&&Number.isFinite(x.lon));
-    if (!stations.length) return null;
-    stations.forEach(s=>s.km=haversine(coord,s));
-    stations.sort((a,b)=>a.km-b.km);
-    return stations[0];
+    const endpoints = [
+      "https://overpass-api.de/api/interpreter",
+      "https://overpass.kumi.systems/api/interpreter"
+    ];
+
+    for (const endpoint of endpoints) {
+      try {
+        const data = await fetchJson(`${endpoint}?data=${encodeURIComponent(q)}`, 18000);
+        const stations = (data.elements||[]).map(el => {
+          const lat = el.lat ?? el.center?.lat;
+          const lon = el.lon ?? el.center?.lon;
+          return {name:el.tags?.name || el.tags?.["name:pt"] || "Estação",lat,lon};
+        }).filter(x=>Number.isFinite(x.lat)&&Number.isFinite(x.lon));
+        if (!stations.length) continue;
+        stations.forEach(st => st.km = haversine(coord, st));
+        stations.sort((a,b)=>a.km-b.km);
+        return stations[0];
+      } catch (err) {
+        console.warn("Falha em servidor de metrô", endpoint, err);
+      }
+    }
+    return null;
   }
 
   async function calculateLocation() {
     readFormIntoDraft();
     const p = state.draft;
-    if (!p.address.trim() || !p.workAddress.trim()) {
-      toast("Informe o endereço do apartamento e o endereço do trabalho.");
+    const settings = loadSettings();
+    const workAddress = String(settings.workAddress || p.workAddress || "").trim();
+    const workCity = String(settings.workCity || "São Paulo - SP").trim();
+
+    if (!p.address.trim()) {
+      toast("Informe o endereço do apartamento.");
       return;
     }
+    if (!workAddress) {
+      toast("Cadastre primeiro o endereço do trabalho no perfil.");
+      openProfile();
+      return;
+    }
+
     const btn = $("#btnLocation");
     const original = btn.textContent;
-    btn.disabled = true; btn.textContent = "Calculando...";
+    btn.disabled = true;
+    btn.textContent = "Localizando...";
     try {
-      const propertyQ = `${p.address}, ${p.city || "São Paulo - SP"}, Brasil`;
-      const workQ = `${p.workAddress}, Brasil`;
-      const [pc,wc] = await Promise.all([geocode(propertyQ), geocode(workQ)]);
-      p.propertyCoord = pc; p.workCoord = wc;
-      const [route,metro] = await Promise.all([
-        routeEstimate(pc,wc),
-        nearestSubway(pc).catch(()=>null)
+      const [pc,wc] = await Promise.all([
+        geocodeAddress(p.address, p.city || "São Paulo - SP"),
+        geocodeAddress(workAddress, workCity)
       ]);
+
+      if (isSaoPauloCity(p.city) && isSaoPauloCity(workCity) && haversine(pc,wc) > 90) {
+        throw new Error("Os endereços ficaram distantes demais. Confira o endereço do trabalho.");
+      }
+
+      p.propertyCoord = pc;
+      p.workCoord = wc;
+      p.workAddress = workAddress;
+
+      const [routeResult, metro] = await Promise.all([
+        routeEstimate(pc,wc).catch(() => null),
+        nearestSubway(pc)
+      ]);
+      const route = routeResult || { km: haversine(pc,wc) * 1.22, min: null, approximate: true };
+
+      if (isSaoPauloCity(p.city) && isSaoPauloCity(workCity) && route.km > 130) {
+        throw new Error("A rota ficou incompatível com São Paulo. Confira os endereços.");
+      }
+
       p.distanceKm = route.km;
       p.durationMin = route.min;
+      p.distanceApprox = !!route.approximate;
       if (metro) {
         p.nearestMetro = metro.name;
         p.metroKm = metro.km;
       } else {
-        p.nearestMetro = "Não identificada automaticamente";
+        p.nearestMetro = "Não encontrada";
         p.metroKm = null;
       }
+
       saveDraft();
       updateAllUI();
       toast("Localização atualizada.");
     } catch (err) {
       console.error(err);
-      toast(err.message || "Não foi possível calcular agora. Use os botões do Google Maps.");
+      p.distanceKm = null;
+      p.durationMin = null;
+      p.distanceApprox = false;
+      p.workCoord = null;
+      updateAllUI();
+      toast(err.message || "Não foi possível localizar. Confira os endereços.");
     } finally {
-      btn.disabled = false; btn.textContent = original;
+      btn.disabled = false;
+      btn.textContent = original;
     }
   }
 
@@ -1064,7 +1458,7 @@
       startY:y, theme:"grid", styles:{fontSize:8,cellPadding:2.4,lineColor:[226,232,240]},
       head:[["Trabalho","Metrô","Técnico","Localização","Custo-benefício","Geral"]],
       body:[[
-        p.distanceKm!=null?`${num(p.distanceKm,1)} km • ${Math.round(p.durationMin||0)} min*`:"—",
+        p.distanceKm!=null?`${num(p.distanceKm,1)} km${p.manualCommute?.trim()?` • ${p.manualCommute.trim()}`:""}`:"—",
         p.metroManual || p.nearestMetro || "—",
         tech.score==null?"—":num(tech.score,1),
         loc==null?"—":num(loc,1),
@@ -1075,7 +1469,7 @@
     });
     y=doc.lastAutoTable.finalY+4;
     doc.setFont("helvetica","normal"); doc.setFontSize(6.8); doc.setTextColor(100,116,139);
-    doc.text("* Tempo e distância automáticos são estimativas viárias. Confirme trânsito/transporte no Google Maps.",14,y);
+    doc.text("Distância aproximada. Para tempo real e transporte, use a rota no Google Maps.",14,y);
     doc.setTextColor(17,24,39);
     y+=7;
 
@@ -1326,6 +1720,11 @@ ${p.nearestMetro?`Metrô: ${p.nearestMetro}`:""}`.trim();
   }
 
   window.CasaDoSamirBack = function() {
+    const sheet = $("#profileSheet");
+    if (sheet && !sheet.hidden) {
+      closeProfile();
+      return true;
+    }
     const active = $(".tab.is-active")?.dataset.tab || "visita";
     if (active !== "visita") {
       switchTab("visita");
@@ -1349,6 +1748,10 @@ ${p.nearestMetro?`Metrô: ${p.nearestMetro}`:""}`.trim();
     renderSaved();
     renderComparison();
     updateAllUI();
+    const profile = loadSettings();
+    if (!profile.profileConfigured && !profile.workAddress) {
+      setTimeout(openProfile, 420);
+    }
   }
 
   init();

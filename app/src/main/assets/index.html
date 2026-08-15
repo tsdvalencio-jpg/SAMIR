@@ -18,7 +18,10 @@
           <span>Visitar • comparar • decidir</span>
         </div>
       </div>
-      <button class="icon-btn" id="btnTheme" type="button" aria-label="Alternar tema" title="Alternar tema">◐</button>
+      <div class="top-actions">
+        <button class="icon-btn" id="btnProfile" type="button" aria-label="Meu perfil e preferências" title="Meu perfil">⚙</button>
+        <button class="icon-btn" id="btnTheme" type="button" aria-label="Alternar tema" title="Alternar tema">◐</button>
+      </div>
     </header>
 
     <nav class="tabs" aria-label="Navegação principal">
@@ -155,42 +158,48 @@
               </div>
             </div>
 
-            <div class="field-grid">
-              <label class="field span-2">
+            <input id="workAddress" name="workAddress" type="hidden" />
+
+            <div class="work-profile-row">
+              <div class="work-profile-copy">
                 <span>Trabalho</span>
-                <input id="workAddress" name="workAddress" type="text" placeholder="Endereço do trabalho" />
-              </label>
+                <strong id="workAddressLabel">Não cadastrado</strong>
+              </div>
+              <button class="btn btn-light btn-small" type="button" id="btnProfileWork">Editar</button>
             </div>
 
-            <div class="location-actions">
+            <div class="location-actions compact-location-actions">
               <button class="btn btn-primary" type="button" id="btnLocation">Localizar</button>
               <button class="btn btn-light" type="button" id="btnMapsProperty">Mapa</button>
-              <button class="btn btn-light" type="button" id="btnMapsRoute">Trabalho</button>
+              <button class="btn btn-light" type="button" id="btnMapsRoute">Rota</button>
             </div>
 
-            <div class="location-cards">
+            <div class="location-cards compact-location-cards">
               <article class="mini-card">
-                <span>Distância do trabalho</span>
+                <span>Trabalho</span>
                 <strong id="distanceWork">—</strong>
-                <small id="durationWork">Informe os endereços</small>
+                <small id="durationWork">Cadastre seu trabalho</small>
               </article>
               <article class="mini-card">
-                <span>Metrô mais próximo</span>
+                <span>Metrô</span>
                 <strong id="nearestMetro">—</strong>
-                <small id="metroDistance">Busca automática</small>
+                <small id="metroDistance">Toque em Localizar</small>
               </article>
             </div>
 
-            <div class="field-grid">
-              <label class="field">
-                <span>Metrô</span>
-                <input id="metroManual" name="metroManual" type="text" placeholder="Ex.: Ana Rosa" />
-              </label>
-              <label class="field">
-                <span>Tempo até o trabalho</span>
-                <input id="manualCommute" name="manualCommute" type="text" placeholder="Ex.: 28 min de metrô" />
-              </label>
-            </div>
+            <details class="optional-details location-adjustments">
+              <summary>Ajustar informação</summary>
+              <div class="field-grid optional-grid">
+                <label class="field">
+                  <span>Metrô confirmado</span>
+                  <input id="metroManual" name="metroManual" type="text" placeholder="Ex.: Ana Rosa" />
+                </label>
+                <label class="field">
+                  <span>Tempo real até o trabalho</span>
+                  <input id="manualCommute" name="manualCommute" type="text" placeholder="Ex.: 28 min" />
+                </label>
+              </div>
+            </details>
 
           </section>
 
@@ -299,6 +308,81 @@
       <span>Checklist de apoio à decisão de compra de imóvel usado.</span>
       <strong>Powered by thIAguinho Soluções</strong>
     </footer>
+  </div>
+
+
+  <div class="sheet-backdrop" id="profileSheet" hidden>
+    <section class="profile-sheet" role="dialog" aria-modal="true" aria-labelledby="profileTitle">
+      <header class="sheet-header">
+        <div>
+          <span class="eyebrow">MEU PERFIL</span>
+          <h2 id="profileTitle">Preferências</h2>
+        </div>
+        <button class="icon-btn sheet-close" id="btnCloseProfile" type="button" aria-label="Fechar">×</button>
+      </header>
+
+      <div class="sheet-body">
+        <label class="field">
+          <span>Endereço do trabalho</span>
+          <input id="profileWorkAddress" type="text" placeholder="Rua, número, bairro" autocomplete="street-address" />
+        </label>
+
+        <label class="field">
+          <span>Cidade do trabalho</span>
+          <input id="profileWorkCity" type="text" value="São Paulo - SP" autocomplete="address-level2" />
+        </label>
+
+        <div class="profile-section-title">O que procuro</div>
+
+        <div class="profile-grid">
+          <label class="field">
+            <span>Preço máximo</span>
+            <div class="money-input"><b>R$</b><input id="prefMaxPrice" inputmode="decimal" placeholder="Sem limite" /></div>
+          </label>
+          <label class="field">
+            <span>Condomínio máximo</span>
+            <div class="money-input"><b>R$</b><input id="prefMaxCondo" inputmode="decimal" placeholder="Sem limite" /></div>
+          </label>
+          <label class="field">
+            <span>IPTU máximo</span>
+            <div class="money-input"><b>R$</b><input id="prefMaxIptu" inputmode="decimal" placeholder="Sem limite" /></div>
+          </label>
+          <label class="field">
+            <span>Área mínima</span>
+            <div class="suffix-input"><input id="prefMinArea" inputmode="decimal" placeholder="0" /><b>m²</b></div>
+          </label>
+          <label class="field">
+            <span>Quartos mínimos</span>
+            <input id="prefMinBedrooms" type="number" min="0" step="1" placeholder="0" />
+          </label>
+          <label class="field">
+            <span>Máx. até trabalho</span>
+            <div class="suffix-input"><input id="prefMaxWorkKm" inputmode="decimal" placeholder="0" /><b>km</b></div>
+          </label>
+          <label class="field">
+            <span>Máx. até metrô</span>
+            <div class="suffix-input"><input id="prefMaxMetroKm" inputmode="decimal" placeholder="0" /><b>km</b></div>
+          </label>
+        </div>
+
+        <label class="field">
+          <span>Bairros preferidos</span>
+          <input id="prefNeighborhoods" type="text" placeholder="Ex.: Vila Mariana, Saúde, Paraíso" />
+        </label>
+
+        <div class="profile-checks">
+          <label><input id="prefParking" type="checkbox" /> Precisa de vaga</label>
+          <label><input id="prefPortaria" type="checkbox" /> Portaria 24h</label>
+          <label><input id="prefElevator" type="checkbox" /> Elevador</label>
+          <label><input id="prefQuiet" type="checkbox" /> Bairro tranquilo</label>
+          <label><input id="prefSafe" type="checkbox" /> Boa segurança</label>
+        </div>
+      </div>
+
+      <footer class="sheet-actions">
+        <button class="btn btn-primary" id="btnSaveProfile" type="button">Salvar perfil</button>
+      </footer>
+    </section>
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
